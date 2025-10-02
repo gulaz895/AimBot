@@ -1,0 +1,172 @@
+local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/HiThx/WindUI/main/WindUI.lua"))()
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+local RunService = game:GetService("RunService")
+
+-- ===============================
+-- ระบบ Key แบบตรง ๆ (Free)
+-- ===============================
+local AllowedKeys = {
+    "wave2293910", -- Key ของผู้เล่น
+}
+
+-- สร้างหน้าต่าง GUI
+local Window = WindUI:CreateWindow({
+    Title = "Super Hub",
+    Folder = "SuperHub",
+    Theme = "Dark",
+    Size = UDim2.fromOffset(800, 500),
+    SideBarWidth = 200,
+})
+
+-- ฟังก์ชันตรวจสอบ Key
+local function CheckKey()
+    local userKey = Window:Prompt("กรุณากรอก Key ของคุณ")
+    if not userKey then return false end
+
+    for _, key in ipairs(AllowedKeys) do
+        if userKey == key then
+            if setclipboard then setclipboard(userKey) end
+            Window:Notify({
+                Title = "Key ถูกต้อง",
+                Description = "Key ถูกคัดลอกไป Clipboard ✅",
+                Duration = 3
+            })
+            return true
+        end
+    end
+
+    Window:Notify({
+        Title = "Key ไม่ถูกต้อง",
+        Description = "กรุณาลองอีกครั้ง ❌",
+        Duration = 3
+    })
+    return false
+end
+
+-- ตรวจสอบ Key ก่อนโหลด GUI อื่น
+if not CheckKey() then
+    return
+end
+
+-- ===============================
+-- ฝั่งซ้าย: Tabs / Section
+-- ===============================
+local TabMenu = Window:CreateTab("Menu")
+
+-- Aimbot
+local SectionAimbot = TabMenu:CreateSection("Aimbot")
+local AimbotEnabled = false
+local CircleRadius = 100
+
+SectionAimbot:CreateSlider({
+    Name = "Adjust Circle Radius",
+    Min = 50,
+    Max = 300,
+    Default = 100,
+    Callback = function(value)
+        CircleRadius = value
+    end,
+})
+
+SectionAimbot:CreateButton({
+    Name = "Toggle Head Lock",
+    Callback = function()
+        AimbotEnabled = not AimbotEnabled
+        SectionAimbot:Notify({
+            Title = "Aimbot",
+            Description = "Head Lock "..(AimbotEnabled and "Enabled ✅" or "Disabled ❌"),
+            Duration = 2
+        })
+    end,
+})
+
+-- ESP
+local SectionESP = TabMenu:CreateSection("ESP")
+local ESPEnabled = false
+SectionESP:CreateButton({
+    Name = "Toggle ESP (Green)",
+    Callback = function()
+        ESPEnabled = not ESPEnabled
+        SectionESP:Notify({
+            Title = "ESP",
+            Description = "ESP "..(ESPEnabled and "Enabled ✅" or "Disabled ❌"),
+            Duration = 2
+        })
+    end,
+})
+
+-- ===============================
+-- ฝั่งขวา: ฟังก์ชัน + วงกลม
+-- ===============================
+local FunctionTab = Window:CreateTab("Functions")
+
+-- สร้างวงกลมกลางจอ
+local Circle = Drawing.new("Circle")
+Circle.Color = Color3.fromRGB(255,0,0)
+Circle.Thickness = 2
+Circle.Radius = CircleRadius
+Circle.Transparency = 1
+Circle.Visible = true
+Circle.Position = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
+
+-- Aimbot ล็อคหัวเฉพาะคนในวงกลม
+spawn(function()
+    while true do
+        RunService.RenderStepped:Wait()
+        Circle.Position = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
+        Circle.Radius = CircleRadius
+
+        if AimbotEnabled then
+            local closestPlayer = nil
+            local shortestDistance = math.huge
+            for _, plr in ipairs(Players:GetPlayers()) do
+                if plr ~= LocalPlayer and plr.Character and plr.Character:FindFirstChild("Head") then
+                    local screenPos, onScreen = Camera:WorldToViewportPoint(plr.Character.Head.Position)
+                    if onScreen then
+                        local dist = (Vector2.new(screenPos.X, screenPos.Y) - Circle.Position).Magnitude
+                        if dist <= CircleRadius and dist < shortestDistance then
+                            shortestDistance = dist
+                            closestPlayer = plr
+                        end
+                    end
+                end
+            end
+
+            if closestPlayer then
+                -- ใส่โค้ดล็อคหัว / หมุนกล้อง / ยิงตรงนี้
+                -- print("Locked Head:", closestPlayer.Name)
+            end
+        end
+    end
+end)
+
+-- ESP สีเขียว
+local Boxes = {}
+spawn(function()
+    while true do
+        wait(0.1)
+        for _, plr in ipairs(Players:GetPlayers()) do
+            if plr ~= LocalPlayer and plr.Character and plr.Character:FindFirstChild("Head") then
+                if ESPEnabled then
+                    if not Boxes[plr] then
+                        local box = Instance.new("BoxHandleAdornment")
+                        box.Adornee = plr.Character
+                        box.Size = Vector3.new(2,5,1)
+                        box.Color = Color3.fromRGB(0,255,0)
+                        box.AlwaysOnTop = true
+                        box.ZIndex = 10
+                        box.Parent = workspace
+                        Boxes[plr] = box
+                    end
+                else
+                    if Boxes[plr] then
+                        Boxes[plr]:Destroy()
+                        Boxes[plr] = nil
+                    end
+                end
+            end
+        end
+    end
+end)
